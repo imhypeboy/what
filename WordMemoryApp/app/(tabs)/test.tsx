@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,6 +12,8 @@ import { GlassContainer } from '@/components/GlassContainer';
 import { TossButton } from '@/components/TossButton';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { storageService } from '@/services/storageService';
+import { Word } from '@/types';
 
 interface TestQuestion {
   id: string;
@@ -20,31 +22,6 @@ interface TestQuestion {
   correctAnswer: number;
   explanation: string;
 }
-
-// 임시 데이터
-const mockQuestions: TestQuestion[] = [
-  {
-    id: '1',
-    question: 'Appreciate의 의미는?',
-    options: ['비난하다', '감사하다', '무시하다', '거부하다'],
-    correctAnswer: 1,
-    explanation: 'Appreciate는 "감사하다, 인정하다"라는 의미입니다.',
-  },
-  {
-    id: '2',
-    question: 'Collaborate의 의미는?',
-    options: ['경쟁하다', '협력하다', '방해하다', '지배하다'],
-    correctAnswer: 1,
-    explanation: 'Collaborate는 "협력하다, 공동 작업하다"라는 의미입니다.',
-  },
-  {
-    id: '3',
-    question: 'Demonstrate의 의미는?',
-    options: ['숨기다', '거부하다', '증명하다', '망각하다'],
-    correctAnswer: 2,
-    explanation: 'Demonstrate는 "증명하다, 보여주다"라는 의미입니다.',
-  },
-];
 
 interface TestResult {
   questionId: string;
@@ -61,8 +38,56 @@ export default function TestScreen() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [timeLeft, setTimeLeft] = useState(300); // 5분
+  const [questions, setQuestions] = useState<TestQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
+
+  useEffect(() => {
+    // 퀴즈 문제 생성
+    const generateQuestions = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const wordSets = await storageService.getWordSets();
+        const allWords: Word[] = wordSets.flatMap(ws => ws.words);
+        if (allWords.length < 4) {
+          setError('퀴즈를 시작하려면 최소 4개의 단어가 필요합니다.');
+          setQuestions([]);
+          setLoading(false);
+          return;
+        }
+        // 랜덤 셔플
+        const shuffled = [...allWords].sort(() => Math.random() - 0.5);
+        // 최대 10문제
+        const numQuestions = Math.min(10, shuffled.length);
+        const questions: TestQuestion[] = [];
+        for (let i = 0; i < numQuestions; i++) {
+          const answerWord = shuffled[i];
+          // 오답 후보
+          const wrongWords = shuffled.filter(w => w.id !== answerWord.id).slice(0, 3);
+          // 정답 위치 랜덤
+          const correctIdx = Math.floor(Math.random() * 4);
+          const options = [...wrongWords.map(w => w.meaning)];
+          options.splice(correctIdx, 0, answerWord.meaning);
+          questions.push({
+            id: answerWord.id,
+            question: `${answerWord.word}의 의미는?`,
+            options,
+            correctAnswer: correctIdx,
+            explanation: answerWord.example || '',
+          });
+        }
+        setQuestions(questions);
+      } catch (e) {
+        setError('문제 생성 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    generateQuestions();
+  }, []);
 
   const startTest = (type: 'quick' | 'full') => {
     setTestMode('taking');
@@ -91,7 +116,7 @@ export default function TestScreen() {
     const newResults = [...testResults, result];
     setTestResults(newResults);
 
-    if (currentQuestionIndex < mockQuestions.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
     } else {
@@ -119,7 +144,7 @@ export default function TestScreen() {
               size="small"
             />
             <Text style={[styles.progress, { color: colors.text }]}>
-              {currentQuestionIndex + 1} / {mockQuestions.length}
+              {currentQuestionIndex + 1} / {questions.length}
             </Text>
             <Text style={[styles.timer, { color: colors.gradients.warning[0] }]}>
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
@@ -165,7 +190,7 @@ export default function TestScreen() {
 
         <View style={styles.testControls}>
           <TossButton
-            title={currentQuestionIndex === mockQuestions.length - 1 ? '완료' : '다음'}
+            title={currentQuestionIndex === questions.length - 1 ? '완료' : '다음'}
             onPress={handleNextQuestion}
             size="large"
             fullWidth
@@ -199,7 +224,7 @@ export default function TestScreen() {
               상세 결과
             </Text>
             
-            {mockQuestions.map((question, index) => {
+            {questions.map((question, index) => {
               const result = testResults[index];
               return (
                 <GlassContainer key={question.id} style={styles.resultItem} borderRadius="lg">

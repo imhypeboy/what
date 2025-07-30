@@ -23,7 +23,7 @@ export default function MainScreen() {
       case 0:
         return <WordSetsScreen isDarkMode={true} />;
       case 1:
-        return <StudyScreen />;
+        return <StudyScreen onComplete={() => setSelectedIndex(0)} />;
       case 2:
         return <TestScreen />;
       case 3:

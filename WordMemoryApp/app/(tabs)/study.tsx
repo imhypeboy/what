@@ -5,8 +5,6 @@ import {
   StyleSheet, 
   SafeAreaView,
   Alert,
-  Modal,
-  StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -18,12 +16,16 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { storageService } from '@/services/storageService';
 import { Word, WordSet, StudySession, StudyResult } from '@/types';
 
-export default function StudyScreen() {
+interface StudyScreenProps {
+  onComplete?: () => void;
+}
+
+export default function StudyScreen({ onComplete }: StudyScreenProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [studyMode, setStudyMode] = useState<'flashcard' | 'quiz' | null>(null);
+  const [studyMode, setStudyMode] = useState<'flashcard' | 'quiz' | null>('flashcard'); // 바로 플래시카드 시작
   const [showMeaning, setShowMeaning] = useState(false);
   const [wordSets, setWordSets] = useState<WordSet[]>([]);
   const [selectedWordSet, setSelectedWordSet] = useState<WordSet | null>(null);
@@ -31,10 +33,17 @@ export default function StudyScreen() {
   const [loading, setLoading] = useState(true);
   const [currentSession, setCurrentSession] = useState<StudySession | null>(null);
 
-  // 앱 시작 시 데이터 로드
+  // 앱 시작 시 데이터 로드 및 자동 시작
   useEffect(() => {
     loadWordSets();
   }, []);
+
+  // 데이터 로드 후 자동으로 학습 시작
+  useEffect(() => {
+    if (!loading && selectedWordSet && studyWords.length > 0) {
+      startStudySession(selectedWordSet.id);
+    }
+  }, [loading, selectedWordSet, studyWords]);
 
   const loadWordSets = async () => {
     try {
@@ -45,7 +54,7 @@ export default function StudyScreen() {
         setStudyWords(sets[0].words);
       }
     } catch (error) {
-      console.error('Error loading word sets:', error);
+      // 모든 console.error, console.log 등 디버깅 코드 제거
     } finally {
       setLoading(false);
     }
@@ -85,10 +94,24 @@ export default function StudyScreen() {
       };
       
       await storageService.saveStudySession(updatedSession);
+      // 학습 통계 저장
+      const today = new Date().toISOString().split('T')[0];
+      const prevStats = await storageService.getTodayStats();
+      const newStats = {
+        id: prevStats?.id || `stats_${today}`,
+        date: today,
+        wordsLearned: (prevStats?.wordsLearned || 0) + studyWords.length,
+        studyTime: (prevStats?.studyTime || 0) + (updatedSession.duration ? Math.round(updatedSession.duration / 60) : 1),
+        sessionsCompleted: (prevStats?.sessionsCompleted || 0) + 1,
+        averageAccuracy: updatedSession.accuracy,
+        streak: (prevStats?.streak || 0) + 1,
+      };
+      await storageService.saveStudyStats(newStats);
     }
     setCurrentSession(null);
     setStudyMode(null);
     setCurrentIndex(0);
+    if (onComplete) onComplete();
   };
 
   const updateWordProgress = async (word: Word, isCorrect: boolean) => {
@@ -113,10 +136,7 @@ export default function StudyScreen() {
       setCurrentIndex(currentIndex + 1);
       setShowMeaning(false);
     } else {
-      Alert.alert('완료', '모든 단어를 학습했습니다!', [
-        { text: '다시 시작', onPress: () => setCurrentIndex(0) },
-        { text: '종료', onPress: endStudySession }
-      ]);
+      endStudySession(); // 마지막 단어 학습 시 바로 세션 종료 및 홈 전환
     }
   };
 
@@ -174,120 +194,29 @@ export default function StudyScreen() {
     Alert.alert('준비 중', '퀴즈 모드는 곧 추가됩니다!');
   };
 
-  const StudyModal = () => (
-    <Modal
-      visible={studyMode === 'flashcard'}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      statusBarTranslucent
-    >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <View style={styles.studyModalContainer}>
-        {/* 블러 배경 */}
-        <BlurView intensity={8} tint="dark" style={StyleSheet.absoluteFillObject} />
-        
-        {/* 어두운 오버레이 */}
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]} />
-        
-        <SafeAreaView style={styles.studyContent}>
-          {/* 헤더 */}
-          <View style={styles.studyHeader}>
-            <TossButton
-              title="← 뒤로"
-              onPress={() => setStudyMode(null)}
-              variant="ghost"
-              size="small"
-            />
-            <Text style={[styles.progress, { color: '#FFFFFF' }]}>
-              {studyWords.length > 0 ? currentIndex + 1 : 0} / {studyWords.length}
-            </Text>
-          </View>
 
-          {/* 카드 컨테이너 */}
-          <View style={styles.cardContainer}>
-            {currentWord ? (
-              <SwipeableWordCard
-                key={currentWord.id}
-                word={currentWord}
-                onSwipeLeft={handleSwipeLeft}
-                onSwipeRight={handleSwipeRight}
-              />
-            ) : (
-              <View style={styles.noWordContainer}>
-                <Text style={[styles.noWordText, { color: 'rgba(255,255,255,0.8)' }]}>
-                  학습할 단어가 없습니다
-                </Text>
-                <Text style={[styles.noWordSubText, { color: 'rgba(255,255,255,0.6)' }]}>
-                  단어장에 단어를 추가해주세요
-                </Text>
-              </View>
-            )}
-          </View>
 
-          {/* 하단 컨트롤 */}
-          <View style={styles.studyControls}>
-            <GlassContainer style={styles.helpContainer} borderRadius="md" intensity={60}>
-              <Text style={[styles.helpText, { color: 'rgba(255,255,255,0.8)' }]}>
-                💡 카드를 탭하여 뜻을 확인하고, 좌우로 스와이프하세요
-              </Text>
-            </GlassContainer>
-          </View>
-        </SafeAreaView>
-      </View>
-    </Modal>
-  );
-
-  return (
-    <>
+  // 단어가 있으면 플래시카드 화면, 없으면 안내 화면
+  if (studyWords.length === 0 || !currentWord) {
+    return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
           <GlassContainer style={styles.welcomeCard} borderRadius="xl">
+            <Text style={styles.emptyEmoji}>📚</Text>
             <Text style={[styles.welcomeTitle, { color: colors.text }]}>
-              어떤 방식으로 학습하시겠어요?
+              학습할 단어가 없습니다
             </Text>
             <Text style={[styles.welcomeDescription, { color: colors.textSecondary }]}>
-              학습 방법을 선택해주세요
+              단어장에서 단어를 추가한 후 학습을 시작해보세요
             </Text>
+            <TossButton
+              title="단어장으로 이동"
+              onPress={() => {
+                Alert.alert('안내', '단어장 탭에서 단어를 추가해주세요!');
+              }}
+              style={{ marginTop: Spacing.lg }}
+            />
           </GlassContainer>
-
-          <View style={styles.modeGrid}>
-            <GlassContainer style={styles.modeCard} borderRadius="lg">
-              <View style={styles.modeIcon}>
-                <Text style={styles.modeEmoji}>📚</Text>
-              </View>
-              <Text style={[styles.modeTitle, { color: colors.text }]}>
-                플래시카드
-              </Text>
-              <Text style={[styles.modeDescription, { color: colors.textSecondary }]}>
-                단어와 뜻을 번갈아 보며 암기하세요
-              </Text>
-              <TossButton
-                title="시작하기"
-                onPress={startFlashcardMode}
-                size="small"
-                style={{ marginTop: Spacing.md }}
-              />
-            </GlassContainer>
-
-            <GlassContainer style={styles.modeCard} borderRadius="lg">
-              <View style={styles.modeIcon}>
-                <Text style={styles.modeEmoji}>🧠</Text>
-              </View>
-              <Text style={[styles.modeTitle, { color: colors.text }]}>
-                퀴즈 모드
-              </Text>
-              <Text style={[styles.modeDescription, { color: colors.textSecondary }]}>
-                문제를 풀며 실력을 확인해보세요
-              </Text>
-              <TossButton
-                title="시작하기"
-                onPress={startQuizMode}
-                size="small"
-                variant="secondary"
-                style={{ marginTop: Spacing.md }}
-              />
-            </GlassContainer>
-          </View>
 
           <GlassContainer style={styles.statsCard} borderRadius="lg">
             <Text style={[styles.statsTitle, { color: colors.text }]}>
@@ -295,24 +224,85 @@ export default function StudyScreen() {
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.primary }]}>12</Text>
+                <Text style={[styles.statNumber, { color: colors.primary }]}>0</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>학습한 단어</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.gradients.success[0] }]}>8</Text>
+                <Text style={[styles.statNumber, { color: colors.gradients.success[0] }]}>0%</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>정답률</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: colors.gradients.warning[0] }]}>15분</Text>
+                <Text style={[styles.statNumber, { color: colors.gradients.warning[0] }]}>0분</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>학습 시간</Text>
               </View>
             </View>
           </GlassContainer>
         </View>
       </View>
+    );
+  }
+
+  // 플래시카드 학습 화면 (Modal 제거, 일반 화면으로)
+  return (
+    <View style={styles.studyModalContainer}>
+      {/* 블러 배경 */}
+      <BlurView intensity={8} tint="dark" style={StyleSheet.absoluteFillObject} />
       
-      <StudyModal />
-    </>
+      {/* 어두운 오버레이 */}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]} />
+      
+      <SafeAreaView style={styles.studyContent}>
+        {/* 헤더 */}
+        <View style={styles.studyHeader}>
+          <TossButton
+            title="← 뒤로"
+            onPress={() => setStudyMode(null)}
+            variant="ghost"
+            size="small"
+          />
+          <Text style={[styles.progress, { color: '#FFFFFF' }]}>
+            {currentIndex + 1} / {studyWords.length}
+          </Text>
+        </View>
+
+        {/* 카드 컨테이너 */}
+        <View style={styles.cardContainer}>
+          <SwipeableWordCard
+            key={currentWord.id}
+            word={currentWord}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+          />
+        </View>
+
+        {/* 하단 컨트롤 - 스와이프 대신 버튼으로도 제어 가능 */}
+        <View style={styles.studyControls}>
+          <GlassContainer style={styles.helpContainer} borderRadius="md" intensity={60}>
+            <Text style={[styles.helpText, { color: 'rgba(255,255,255,0.8)' }]}>
+              💡 카드를 탭하여 뜻을 확인하고, 좌우로 스와이프하세요
+            </Text>
+          </GlassContainer>
+          
+          {/* 스와이프 버튼 (웹 호환성) */}
+          <View style={styles.swipeButtons}>
+            <TossButton
+              title="⬅️ 다시 암기"
+              onPress={handleSwipeLeft}
+              variant="ghost"
+              size="small"
+              style={styles.swipeButton}
+            />
+            <TossButton
+              title="이해했어요 ➡️"
+              onPress={handleSwipeRight}
+              variant="primary"
+              size="small"
+              style={styles.swipeButton}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -446,6 +436,11 @@ const styles = StyleSheet.create({
     ...Typography.caption1,
     marginTop: Spacing.xs / 2,
   },
+  emptyEmoji: {
+    fontSize: 80,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
   noWordContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -481,5 +476,14 @@ const styles = StyleSheet.create({
   studyControls: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
+    gap: Spacing.md,
+  },
+  swipeButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  swipeButton: {
+    flex: 1,
   },
 });

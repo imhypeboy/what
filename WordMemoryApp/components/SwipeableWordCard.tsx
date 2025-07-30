@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { GlassContainer } from './GlassContainer';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -22,7 +23,8 @@ interface SwipeableWordCardProps {
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = screenWidth - (Spacing.lg * 2);
-const swipeThreshold = screenWidth / 4;
+const swipeThreshold = 80; // 더 민감하게 (화면의 1/4 → 고정값 80px)
+const velocityThreshold = 800; // 속도 기반 임계값 추가
 
 export function SwipeableWordCard({
   word,
@@ -73,13 +75,41 @@ export function SwipeableWordCard({
       rotate.value = interpolate(translateX.value, [-screenWidth, screenWidth], [-15, 15]);
     },
     onEnd: (event) => {
-      if (Math.abs(event.translationX) > swipeThreshold) {
-        if (event.translationX > 0) {
-          translateX.value = withTiming(screenWidth, {}, () => runOnJS(onSwipeRight)());
+      
+      // 거리 또는 속도 기반으로 스와이프 인식
+      const shouldSwipe = Math.abs(event.translationX) > swipeThreshold || Math.abs(event.velocityX) > velocityThreshold;
+      
+      if (shouldSwipe) {
+        // 햅틱 피드백
+        runOnJS(() => {
+          try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } catch (e) {
+            // console.log('햅틱 피드백 실패:', e);
+          }
+        })();
+        
+        if (event.translationX > 0 || event.velocityX > 0) {
+          // 우측 스와이프 - 이해했음
+          translateX.value = withTiming(screenWidth, { duration: 300 }, () => {
+            runOnJS(onSwipeRight)();
+            // 카드 위치 리셋
+            translateX.value = 0;
+            translateY.value = 0;
+            rotate.value = 0;
+          });
         } else {
-          translateX.value = withTiming(-screenWidth, {}, () => runOnJS(onSwipeLeft)());
+          // 좌측 스와이프 - 다시 암기
+          translateX.value = withTiming(-screenWidth, { duration: 300 }, () => {
+            runOnJS(onSwipeLeft)();
+            // 카드 위치 리셋
+            translateX.value = 0;
+            translateY.value = 0;
+            rotate.value = 0;
+          });
         }
       } else {
+        // 스와이프 임계값 미달시 원위치
         translateX.value = withSpring(0);
         translateY.value = withSpring(0);
         rotate.value = withSpring(0);
@@ -108,7 +138,11 @@ export function SwipeableWordCard({
             </View>
             <View style={styles.cardFooter}>
               <Text style={[styles.hint, { color: colors.textTertiary }]}>탭하여 뜻 보기</Text>
-              <View style={[styles.difficultyDot, { backgroundColor: getDifficultyColor(word.difficulty) }]} />
+              <View style={styles.swipeIndicators}>
+                <Text style={[styles.swipeHint, { color: '#FF3B30' }]}>⬅️ 다시</Text>
+                <View style={[styles.difficultyDot, { backgroundColor: getDifficultyColor(word.difficulty) }]} />
+                <Text style={[styles.swipeHint, { color: '#30D158' }]}>이해 ➡️</Text>
+              </View>
             </View>
           </Pressable>
         </Animated.View>
@@ -131,7 +165,11 @@ export function SwipeableWordCard({
             </View>
             <View style={styles.cardFooter}>
               <Text style={[styles.hint, { color: 'rgba(255,255,255,0.7)' }]}>탭하여 단어 보기</Text>
-              <View style={[styles.difficultyDot, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
+              <View style={styles.swipeIndicators}>
+                <Text style={[styles.swipeHint, { color: 'rgba(255, 59, 48, 0.8)' }]}>⬅️ 다시</Text>
+                <View style={[styles.difficultyDot, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
+                <Text style={[styles.swipeHint, { color: 'rgba(48, 209, 88, 0.8)' }]}>이해 ➡️</Text>
+              </View>
             </View>
           </Pressable>
         </Animated.View>
@@ -248,6 +286,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  swipeIndicators: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  swipeHint: {
+    ...Typography.caption2,
+    fontWeight: '600',
+    fontSize: 11,
   },
 });
 // Re-export interpolate from reanimated

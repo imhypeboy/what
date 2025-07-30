@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,6 +12,8 @@ import { GlassContainer } from '@/components/GlassContainer';
 import { TossButton } from '@/components/TossButton';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { storageService } from '@/services/storageService';
+import { StudyStats } from '@/types';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -28,35 +30,52 @@ interface MonthlyStats {
   streak: number; // days
 }
 
-// 임시 데이터
-const weeklyData: WeeklyData[] = [
-  { day: '월', wordsLearned: 15, studyTime: 25 },
-  { day: '화', wordsLearned: 12, studyTime: 20 },
-  { day: '수', wordsLearned: 8, studyTime: 15 },
-  { day: '목', wordsLearned: 20, studyTime: 35 },
-  { day: '금', wordsLearned: 18, studyTime: 30 },
-  { day: '토', wordsLearned: 25, studyTime: 45 },
-  { day: '일', wordsLearned: 10, studyTime: 18 },
-];
-
-const monthlyStats: MonthlyStats = {
-  totalWords: 450,
-  totalTime: 720, // 12 hours
-  averageScore: 85,
-  streak: 12,
-};
-
 export default function ProgressScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('week');
+  const [stats, setStats] = useState<StudyStats[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const maxWordsLearned = Math.max(...weeklyData.map(d => d.wordsLearned));
-  const maxStudyTime = Math.max(...weeklyData.map(d => d.studyTime));
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      const allStats = await storageService.getStudyStats();
+      setStats(allStats);
+      setLoading(false);
+    };
+    fetchStats();
+  }, []);
+
+  // 주간/월간/연간 통계 계산
+  const getStatsByPeriod = (period: 'week' | 'month' | 'year') => {
+    const now = new Date();
+    let startDate: Date;
+    if (period === 'week') {
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 6);
+    } else if (period === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    }
+    return stats.filter(s => new Date(s.date) >= startDate && new Date(s.date) <= now);
+  };
+
+  const periodStats = getStatsByPeriod(selectedPeriod);
+  const totalWords = periodStats.reduce((sum, s) => sum + (s.wordsLearned || 0), 0);
+  const totalTime = periodStats.reduce((sum, s) => sum + (s.studyTime || 0), 0);
+  const averageAccuracy = periodStats.length > 0 ? Math.round(periodStats.reduce((sum, s) => sum + (s.averageAccuracy || 0), 0) / periodStats.length) : 0;
+  const streak = stats.length > 0 ? Math.max(...stats.map(s => s.streak || 0)) : 0;
+
+  if (loading) return <Text>로딩 중...</Text>;
+  if (stats.length === 0) return <Text>아직 학습 기록이 없습니다.</Text>;
+
+  const maxWordsLearned = Math.max(...periodStats.map(d => d.wordsLearned || 0));
+  const maxStudyTime = Math.max(...periodStats.map(d => d.studyTime || 0));
 
   const BarChart = ({ data, maxValue, type }: { 
-    data: WeeklyData[], 
+    data: StudyStats[], 
     maxValue: number, 
     type: 'words' | 'time' 
   }) => {
@@ -67,11 +86,11 @@ export default function ProgressScreen() {
       <View style={styles.chartContainer}>
         <View style={styles.chart}>
           {data.map((item, index) => {
-            const value = type === 'words' ? item.wordsLearned : item.studyTime;
+            const value = type === 'words' ? item.wordsLearned || 0 : item.studyTime || 0;
             const height = (value / maxValue) * 120;
             
             return (
-              <View key={item.day} style={styles.barContainer}>
+              <View key={item.date} style={styles.barContainer}>
                 <View style={[styles.barBackground, { width: barWidth, height: 120 }]}>
                   <LinearGradient
                     colors={type === 'words' ? colors.gradients.primary : colors.gradients.secondary}
@@ -84,7 +103,7 @@ export default function ProgressScreen() {
                   {value}
                 </Text>
                 <Text style={[styles.barLabel, { color: colors.textSecondary }]}>
-                  {item.day}
+                  {item.date}
                 </Text>
               </View>
             );
@@ -143,12 +162,12 @@ export default function ProgressScreen() {
         {/* 이번 주 요약 */}
         <GlassContainer style={styles.summaryCard} borderRadius="xl">
           <Text style={[styles.summaryTitle, { color: colors.text }]}>
-            이번 주 요약
+            이번 {selectedPeriod} 요약
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryNumber, { color: colors.primary }]}>
-                {weeklyData.reduce((sum, day) => sum + day.wordsLearned, 0)}
+                {totalWords}
               </Text>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
                 학습한 단어
@@ -157,7 +176,7 @@ export default function ProgressScreen() {
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryNumber, { color: colors.gradients.success[0] }]}>
-                {Math.round(weeklyData.reduce((sum, day) => sum + day.studyTime, 0) / 60)}h
+                {Math.round(totalTime / 60)}h
               </Text>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
                 학습 시간
@@ -166,7 +185,7 @@ export default function ProgressScreen() {
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryNumber, { color: colors.gradients.warning[0] }]}>
-                {monthlyStats.streak}
+                {streak}
               </Text>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
                 연속 학습일
@@ -182,10 +201,10 @@ export default function ProgressScreen() {
               일별 학습 단어
             </Text>
             <Text style={[styles.chartSubtitle, { color: colors.textSecondary }]}>
-              이번 주
+              이번 {selectedPeriod}
             </Text>
           </View>
-          <BarChart data={weeklyData} maxValue={maxWordsLearned} type="words" />
+          <BarChart data={periodStats} maxValue={maxWordsLearned} type="words" />
         </GlassContainer>
 
         {/* 주간 학습 시간 차트 */}
@@ -198,25 +217,25 @@ export default function ProgressScreen() {
               분 단위
             </Text>
           </View>
-          <BarChart data={weeklyData} maxValue={maxStudyTime} type="time" />
+          <BarChart data={periodStats} maxValue={maxStudyTime} type="time" />
         </GlassContainer>
 
         {/* 월간 통계 */}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          이번 달 성과
+          이번 {selectedPeriod} 성과
         </Text>
         
         <View style={styles.statsGrid}>
           <StatsCard
             title="총 학습 단어"
-            value={monthlyStats.totalWords}
+            value={totalWords}
             unit="개"
             color={colors.primary}
             icon="📚"
           />
           <StatsCard
             title="총 학습 시간"
-            value={Math.round(monthlyStats.totalTime / 60)}
+            value={Math.round(totalTime / 60)}
             unit="시간"
             color={colors.gradients.success[0]}
             icon="⏰"
@@ -226,14 +245,14 @@ export default function ProgressScreen() {
         <View style={styles.statsGrid}>
           <StatsCard
             title="평균 점수"
-            value={monthlyStats.averageScore}
+            value={averageAccuracy}
             unit="점"
             color={colors.gradients.warning[0]}
             icon="🎯"
           />
           <StatsCard
             title="연속 학습일"
-            value={monthlyStats.streak}
+            value={streak}
             unit="일"
             color={colors.gradients.secondary[0]}
             icon="🔥"
@@ -243,7 +262,7 @@ export default function ProgressScreen() {
         {/* 목표 설정 */}
         <GlassContainer style={styles.goalCard} borderRadius="lg">
           <Text style={[styles.goalTitle, { color: colors.text }]}>
-            이번 달 목표
+            이번 {selectedPeriod} 목표
           </Text>
           
           <View style={styles.goalItem}>
@@ -252,13 +271,13 @@ export default function ProgressScreen() {
                 단어 학습 목표
               </Text>
               <Text style={[styles.goalProgress, { color: colors.primary }]}>
-                {monthlyStats.totalWords}/600개 (75%)
+                {totalWords}/600개 (75%)
               </Text>
             </View>
             <View style={[styles.goalBarBg, { backgroundColor: colors.border }]}>
               <LinearGradient
                 colors={colors.gradients.primary}
-                style={[styles.goalBar, { width: '75%' }]}
+                style={[styles.goalBar, { width: `${(totalWords / 600) * 100}%` }]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               />
@@ -271,13 +290,13 @@ export default function ProgressScreen() {
                 학습 시간 목표
               </Text>
               <Text style={[styles.goalProgress, { color: colors.gradients.success[0] }]}>
-                {Math.round(monthlyStats.totalTime / 60)}/20시간 (60%)
+                {Math.round(totalTime / 60)}/20시간 (60%)
               </Text>
             </View>
             <View style={[styles.goalBarBg, { backgroundColor: colors.border }]}>
               <LinearGradient
                 colors={colors.gradients.success}
-                style={[styles.goalBar, { width: '60%' }]}
+                style={[styles.goalBar, { width: `${(totalTime / 1200) * 100}%` }]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               />

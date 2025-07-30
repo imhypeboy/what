@@ -190,27 +190,19 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
 
 
   const handleDeleteWordSet = async (wordSetId: string) => {
-    Alert.alert(
-      '단어장 삭제',
-      '정말로 이 단어장을 삭제하시겠습니까? 모든 학습 기록이 함께 삭제됩니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await storageService.deleteWordSet(wordSetId);
-              Alert.alert('완료', '단어장이 삭제되었습니다.');
-              await loadWordSets();
-            } catch (error) {
-              console.error('Error deleting word set:', error);
-              Alert.alert('오류', '단어장 삭제 중 오류가 발생했습니다.');
-            }
-          },
-        },
-      ]
-    );
+    
+    try {
+      await storageService.deleteWordSet(wordSetId);
+      
+      await loadWordSets();
+      
+      // 성공 알림 (간단한 alert 사용)
+      alert('✅ 단어장이 삭제되었습니다!');
+      
+    } catch (error) {
+      console.error('❌ 삭제 오류:', error);
+      alert(`❌ 오류: 단어장 삭제에 실패했습니다.\n\n${error}`);
+    }
   };
 
   const WordSetCard = ({ wordSet }: { wordSet: WordSet }) => {
@@ -284,8 +276,12 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
             disabled={wordSet.totalWords === 0}
           />
           <TossButton
-            title="삭제"
-            onPress={() => handleDeleteWordSet(wordSet.id)}
+            title="🗑️ 삭제"
+            onPress={() => {
+              if (confirm(`"${wordSet.title}" 단어장을 삭제하시겠습니까?\n\n모든 학습 기록이 함께 삭제됩니다.`)) {
+                handleDeleteWordSet(wordSet.id);
+              }
+            }}
             variant="ghost"
             size="small"
             style={{ flex: 1 }}
