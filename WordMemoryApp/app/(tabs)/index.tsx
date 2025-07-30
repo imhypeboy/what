@@ -16,23 +16,42 @@ import { TossInput } from '@/components/TossInput';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { storageService } from '@/services/storageService';
-import { WordSet } from '@/types';
+import { WordSet, Word } from '@/types';
 
-export default function WordSetsScreen() {
+interface WordSetsScreenProps {
+  isDarkMode?: boolean;
+}
+
+export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenProps = {}) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  
+  // 다크 모드 색상 오버라이드
+  const screenColors = isDarkMode ? {
+    ...colors,
+    background: '#1a1a1a',
+    surface: 'rgba(255, 255, 255, 0.05)',
+    text: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.7)',
+    textTertiary: 'rgba(255, 255, 255, 0.5)',
+    glass: {
+      background: 'rgba(255, 255, 255, 0.08)',
+      border: 'rgba(255, 255, 255, 0.12)',
+      shadow: 'rgba(0, 0, 0, 0.3)',
+    }
+  } : colors;
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSetTitle, setNewSetTitle] = useState('');
   const [newSetDescription, setNewSetDescription] = useState('');
   const [wordSets, setWordSets] = useState<WordSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedWordSet, setSelectedWordSet] = useState<WordSet | null>(null);
-  const [showWordForm, setShowWordForm] = useState(false);
+  
+  // 단어 추가 모달 상태
+  const [showWordModal, setShowWordModal] = useState(false);
+  const [selectedWordSetForAdd, setSelectedWordSetForAdd] = useState<string | null>(null);
   const [newWord, setNewWord] = useState('');
   const [newMeaning, setNewMeaning] = useState('');
-  const [newPronunciation, setNewPronunciation] = useState('');
   const [newExample, setNewExample] = useState('');
-  const [newDifficulty, setNewDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   // 앱 시작 시 데이터 로드
   useEffect(() => {
@@ -109,52 +128,66 @@ export default function WordSetsScreen() {
     }
   };
 
-  const handleAddWord = async (wordSetId: string) => {
-    // 간단한 프롬프트로 단어 추가 (나중에 모달로 교체 가능)
-    Alert.prompt(
-      '단어 추가',
-      '추가할 단어를 입력하세요 (형식: 단어|뜻|예문)',
-      [
+  const handleAddWordToFirstSet = async () => {
+    if (wordSets.length === 0) {
+      Alert.alert('📚 단어장이 없습니다', '먼저 단어장을 만들어주세요!', [
         { text: '취소', style: 'cancel' },
-        {
-          text: '추가',
-          onPress: async (input) => {
-            if (!input) return;
-            
-            const parts = input.split('|');
-            if (parts.length < 2) {
-              Alert.alert('오류', '올바른 형식으로 입력해주세요.\n예: apple|사과|I eat an apple');
-              return;
-            }
+        { text: '단어장 만들기', onPress: () => setShowAddForm(true) }
+      ]);
+      return;
+    }
 
-            try {
-              const word: Word = {
-                id: `word_${Date.now()}`,
-                word: parts[0].trim(),
-                meaning: parts[1].trim(),
-                example: parts[2]?.trim(),
-                difficulty: 'medium',
-                tags: [],
-                createdAt: new Date(),
-                studyCount: 0,
-                correctCount: 0,
-              };
-
-              await storageService.addWordToSet(wordSetId, word);
-              await loadWordSets();
-              Alert.alert('성공', '단어가 추가되었습니다!');
-            } catch (error) {
-              console.error('Error adding word:', error);
-              Alert.alert('오류', '단어 추가에 실패했습니다.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+    // 첫 번째 단어장에 단어 추가
+    const firstWordSet = wordSets[0];
+    setSelectedWordSetForAdd(firstWordSet.id);
+    setShowWordModal(true);
   };
+
+  const handleWordModalSubmit = async () => {
+    if (!newWord.trim() || !newMeaning.trim() || !selectedWordSetForAdd) {
+      Alert.alert('❌ 입력 오류', '단어와 뜻을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      const word: Word = {
+        id: `word_${Date.now()}`,
+        word: newWord.trim(),
+        meaning: newMeaning.trim(),
+        example: newExample.trim() || undefined,
+        difficulty: 'medium',
+        tags: [],
+        createdAt: new Date(),
+        studyCount: 0,
+        correctCount: 0,
+      };
+
+      await storageService.addWordToSet(selectedWordSetForAdd, word);
+      await loadWordSets();
+      
+      // 모달 닫기 및 폼 초기화
+      setShowWordModal(false);
+      setSelectedWordSetForAdd(null);
+      setNewWord('');
+      setNewMeaning('');
+      setNewExample('');
+      
+      Alert.alert('✅ 완료!', `"${word.word}" 단어가 추가되었습니다!`);
+    } catch (error) {
+      console.error('Error adding word:', error);
+      Alert.alert('❌ 오류', '단어 추가에 실패했습니다.');
+    }
+  };
+
+  const handleWordModalCancel = () => {
+    setShowWordModal(false);
+    setSelectedWordSetForAdd(null);
+    setNewWord('');
+    setNewMeaning('');
+    setNewExample('');
+  };
+
+
 
   const handleDeleteWordSet = async (wordSetId: string) => {
     Alert.alert(
@@ -228,6 +261,16 @@ export default function WordSetsScreen() {
         
         <View style={styles.cardActions}>
           <TossButton
+            title="+ 단어"
+            onPress={() => {
+              setSelectedWordSetForAdd(wordSet.id);
+              setShowWordModal(true);
+            }}
+            variant="primary"
+            size="small"
+            style={{ flex: 1 }}
+          />
+          <TossButton
             title="학습하기"
             onPress={() => {
               if (wordSet.totalWords === 0) {
@@ -253,11 +296,17 @@ export default function WordSetsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: screenColors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {showAddForm && (
-          <GlassContainer style={styles.addForm} borderRadius="lg">
-            <Text style={[styles.formTitle, { color: colors.text }]}>
+          <GlassContainer 
+            style={[styles.addForm, { 
+              backgroundColor: screenColors.glass.background,
+              borderColor: screenColors.glass.border 
+            }]} 
+            borderRadius="lg"
+          >
+            <Text style={[styles.formTitle, { color: screenColors.text }]}>
               새 단어장 만들기
             </Text>
             
@@ -320,9 +369,70 @@ export default function WordSetsScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* 단어 추가 모달 */}
+      {showWordModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <GlassContainer 
+              style={[styles.wordModal, { 
+                backgroundColor: screenColors.glass.background,
+                borderColor: screenColors.glass.border 
+              }]} 
+              borderRadius="xl"
+            >
+              <Text style={[styles.modalTitle, { color: screenColors.text }]}>
+                📝 새 단어 추가
+              </Text>
+              
+              <TossInput
+                placeholder="단어 (예: apple)"
+                value={newWord}
+                onChangeText={setNewWord}
+                variant="glass"
+                style={styles.modalInput}
+              />
+              
+              <TossInput
+                placeholder="뜻 (예: 사과)"
+                value={newMeaning}
+                onChangeText={setNewMeaning}
+                variant="glass"
+                style={styles.modalInput}
+              />
+              
+              <TossInput
+                placeholder="예문 (선택사항)"
+                value={newExample}
+                onChangeText={setNewExample}
+                variant="glass"
+                multiline
+                style={styles.modalInput}
+              />
+              
+              <View style={styles.modalActions}>
+                <TossButton
+                  title="취소"
+                  onPress={handleWordModalCancel}
+                  variant="ghost"
+                  style={styles.modalButton}
+                />
+                <TossButton
+                  title="추가하기"
+                  onPress={handleWordModalSubmit}
+                  variant="primary"
+                  style={styles.modalButton}
+                />
+              </View>
+            </GlassContainer>
+          </View>
+        </View>
+      )}
+
       <FloatingActionButton 
-        onPress={() => setShowAddForm(true)} 
+        onPress={handleAddWordToFirstSet} 
         iconName="plus"
+        isDarkMode={true}
+        label="단어 추가"
       />
     </View>
   );
@@ -355,13 +465,28 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   wordSetCard: {
-    padding: Spacing.lg,
+    padding: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryEmoji: {
+    fontSize: 40,
+    marginRight: Spacing.md,
+  },
+  cardInfo: {
+    flex: 1,
   },
   categoryTag: {
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
@@ -380,14 +505,70 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...Typography.title3,
     fontWeight: '700',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.xs / 2,
   },
   cardDescription: {
-    ...Typography.callout,
+    ...Typography.footnote,
+    opacity: 0.7,
     marginBottom: Spacing.lg,
+  },
+  wordCountBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  wordCountText: {
+    ...Typography.callout,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  wordsPreview: {
+    marginBottom: Spacing.lg,
+  },
+  previewTitle: {
+    ...Typography.caption1,
+    marginBottom: Spacing.sm,
+    fontWeight: '500',
+  },
+  previewWords: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  previewWord: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    maxWidth: 80,
+  },
+  previewWordText: {
+    ...Typography.caption1,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  moreWords: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreWordsText: {
+    ...Typography.caption1,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   progressSection: {
     marginBottom: Spacing.lg,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -399,43 +580,136 @@ const styles = StyleSheet.create({
     ...Typography.footnote,
     fontWeight: '500',
   },
-  progressPercent: {
-    ...Typography.footnote,
+  progressPercentage: {
+    ...Typography.callout,
     fontWeight: '700',
   },
-  progressBarBg: {
-    height: 6,
-    borderRadius: 3,
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   cardActions: {
+    gap: Spacing.md,
+  },
+  primaryAction: {
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    shadowColor: '#74f1c3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  primaryActionText: {
+    ...Typography.callout,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  secondaryActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
-  loadingContainer: {
-    padding: Spacing.xl,
+  secondaryAction: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  secondaryActionText: {
+    ...Typography.footnote,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: Spacing.xl * 2,
+    alignItems: 'center',
+  },
+  loadingEmoji: {
+    fontSize: 60,
+    marginBottom: Spacing.lg,
   },
   loadingText: {
     ...Typography.callout,
     textAlign: 'center',
+    fontWeight: '500',
   },
   emptyContainer: {
-    padding: Spacing.xl,
+    padding: Spacing.xl * 2,
     alignItems: 'center',
   },
+  emptyEmoji: {
+    fontSize: 80,
+    marginBottom: Spacing.lg,
+  },
   emptyTitle: {
-    ...Typography.title3,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
+    ...Typography.title2,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
     textAlign: 'center',
   },
   emptyDescription: {
     ...Typography.callout,
     textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+  },
+  emptyAction: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    shadowColor: '#74f1c3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  emptyActionText: {
+    ...Typography.callout,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // 단어 추가 모달 스타일
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContainer: {
+    width: '90%',
+    maxWidth: 400,
+  },
+  wordModal: {
+    padding: Spacing.xl,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    ...Typography.title2,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  modalInput: {
+    marginBottom: Spacing.md,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  modalButton: {
+    flex: 1,
   },
 });
