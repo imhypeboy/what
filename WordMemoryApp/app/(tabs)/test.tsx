@@ -244,16 +244,7 @@ export default function TestScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.background, colors.surface]}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>시험보기</Text>
-        </View>
-      </LinearGradient>
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.content}>
         <GlassContainer style={styles.welcomeCard} borderRadius="xl">
           <Text style={[styles.welcomeTitle, { color: colors.text }]}>
@@ -327,7 +318,7 @@ export default function TestScreen() {
           </View>
         </GlassContainer>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -335,23 +326,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerGradient: {
-    paddingTop: Spacing.lg,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
   testHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.largeTitle,
-    fontWeight: '700',
   },
   progress: {
     ...Typography.headline,
@@ -364,6 +344,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   welcomeCard: {
     padding: Spacing.xl,

@@ -8,6 +8,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassContainer } from '@/components/GlassContainer';
 import { TossButton } from '@/components/TossButton';
@@ -25,6 +26,13 @@ export default function WordSetsScreen() {
   const [newSetDescription, setNewSetDescription] = useState('');
   const [wordSets, setWordSets] = useState<WordSet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedWordSet, setSelectedWordSet] = useState<WordSet | null>(null);
+  const [showWordForm, setShowWordForm] = useState(false);
+  const [newWord, setNewWord] = useState('');
+  const [newMeaning, setNewMeaning] = useState('');
+  const [newPronunciation, setNewPronunciation] = useState('');
+  const [newExample, setNewExample] = useState('');
+  const [newDifficulty, setNewDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   // 앱 시작 시 데이터 로드
   useEffect(() => {
@@ -101,6 +109,53 @@ export default function WordSetsScreen() {
     }
   };
 
+  const handleAddWord = async (wordSetId: string) => {
+    // 간단한 프롬프트로 단어 추가 (나중에 모달로 교체 가능)
+    Alert.prompt(
+      '단어 추가',
+      '추가할 단어를 입력하세요 (형식: 단어|뜻|예문)',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '추가',
+          onPress: async (input) => {
+            if (!input) return;
+            
+            const parts = input.split('|');
+            if (parts.length < 2) {
+              Alert.alert('오류', '올바른 형식으로 입력해주세요.\n예: apple|사과|I eat an apple');
+              return;
+            }
+
+            try {
+              const word: Word = {
+                id: `word_${Date.now()}`,
+                word: parts[0].trim(),
+                meaning: parts[1].trim(),
+                example: parts[2]?.trim(),
+                difficulty: 'medium',
+                tags: [],
+                createdAt: new Date(),
+                studyCount: 0,
+                correctCount: 0,
+              };
+
+              await storageService.addWordToSet(wordSetId, word);
+              await loadWordSets();
+              Alert.alert('성공', '단어가 추가되었습니다!');
+            } catch (error) {
+              console.error('Error adding word:', error);
+              Alert.alert('오류', '단어 추가에 실패했습니다.');
+            }
+          },
+        },
+      ],
+      'plain-text',
+      '',
+      'default'
+    );
+  };
+
   const handleDeleteWordSet = async (wordSetId: string) => {
     Alert.alert(
       '단어장 삭제',
@@ -131,7 +186,7 @@ export default function WordSetsScreen() {
       : 0;
 
     return (
-      <GlassContainer style={styles.wordSetCard} borderRadius="lg">
+      <GlassContainer style={styles.wordSetCard} borderRadius="lg" intensity={40}>
         <View style={styles.cardHeader}>
           <View style={styles.categoryTag}>
             <Text style={[styles.categoryText, { color: colors.primary }]}>
@@ -198,22 +253,7 @@ export default function WordSetsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.background, colors.surface]}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>내 단어장</Text>
-          <TossButton
-            title="+ 새 단어장"
-            onPress={() => setShowAddForm(!showAddForm)}
-            size="small"
-            variant="secondary"
-          />
-        </View>
-      </LinearGradient>
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {showAddForm && (
           <GlassContainer style={styles.addForm} borderRadius="lg">
@@ -279,7 +319,12 @@ export default function WordSetsScreen() {
         
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+
+      <FloatingActionButton 
+        onPress={() => setShowAddForm(true)} 
+        iconName="plus"
+      />
+    </View>
   );
 }
 
@@ -287,23 +332,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerGradient: {
-    paddingTop: Spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.largeTitle,
-    fontWeight: '700',
-  },
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   addForm: {
     padding: Spacing.lg,

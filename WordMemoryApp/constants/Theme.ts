@@ -1,8 +1,8 @@
 export const Colors = {
   light: {
     // iOS 16 inspired colors
-    primary: '#007AFF',
-    secondary: '#5AC8FA',
+    primary: '#74f1c3',
+    secondary: '#a2f5d5',
     accent: '#FF9500',
     background: '#F2F2F7',
     surface: '#FFFFFF',
@@ -15,14 +15,14 @@ export const Colors = {
     
     // Glassmorphism colors
     glass: {
-      background: 'rgba(255, 255, 255, 0.25)',
-      border: 'rgba(255, 255, 255, 0.18)',
-      shadow: 'rgba(0, 0, 0, 0.1)',
+      background: 'rgba(255, 255, 255, 0.8)',
+      border: 'transparent',
+      shadow: 'rgba(0, 0, 0, 0.05)',
     },
     
     // Toss-inspired gradients
     gradients: {
-      primary: ['#007AFF', '#5AC8FA'],
+      primary: ['#74f1c3', '#a2f5d5'],
       secondary: ['#FF9500', '#FFCC02'],
       success: ['#30D158', '#32D74B'],
       warning: ['#FF9500', '#FFCC02'],
@@ -30,26 +30,26 @@ export const Colors = {
     }
   },
   dark: {
-    primary: '#0A84FF',
-    secondary: '#64D2FF',
+    primary: '#74f1c3',
+    secondary: '#a2f5d5',
     accent: '#FF9F0A',
-    background: '#000000',
-    surface: '#1C1C1E',
-    card: '#2C2C2E',
-    text: '#FFFFFF',
-    textSecondary: '#EBEBF5',
+    background: '#F2F2F7',
+    surface: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#000000',
+    textSecondary: '#3C3C43',
     textTertiary: '#8E8E93',
-    border: '#38383A',
-    divider: '#38383A',
+    border: '#C6C6C8',
+    divider: '#E5E5EA',
     
     glass: {
-      background: 'rgba(255, 255, 255, 0.15)',
-      border: 'rgba(255, 255, 255, 0.1)',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      background: 'rgba(255, 255, 255, 0.8)',
+      border: 'transparent',
+      shadow: 'rgba(0, 0, 0, 0.05)',
     },
     
     gradients: {
-      primary: ['#0A84FF', '#64D2FF'],
+      primary: ['#74f1c3', '#a2f5d5'],
       secondary: ['#FF9F0A', '#FFCC02'],
       success: ['#30D158', '#32D74B'],
       warning: ['#FF9F0A', '#FFCC02'],

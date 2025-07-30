@@ -1,22 +1,32 @@
 {
   "expo": {
-    "name": "WordMemoryApp",
-    "slug": "WordMemoryApp",
+    "name": "단어 암기장",
+    "slug": "word-memory-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "wordmemoryapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "description": "자격증 시험 대비를 위한 효과적인 단어 암기 앱입니다. 글래스모피즘 디자인과 직관적인 스와이프 기능으로 즐겁게 단어를 학습하세요.",
+    "keywords": ["단어", "암기", "학습", "자격증", "영어", "교육"],
+    "privacy": "public",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wordmemory.app",
+      "buildNumber": "1.0.0"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#74f1c3"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.wordmemory.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,12 +41,17 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#74f1c3"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }

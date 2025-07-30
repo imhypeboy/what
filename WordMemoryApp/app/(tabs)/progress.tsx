@@ -124,16 +124,7 @@ export default function ProgressScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <LinearGradient
-        colors={[colors.background, colors.surface]}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>학습 진도</Text>
-        </View>
-      </LinearGradient>
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* 기간 선택 */}
         <View style={styles.periodSelector}>
@@ -314,7 +305,7 @@ export default function ProgressScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -322,20 +313,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerGradient: {
-    paddingTop: Spacing.lg,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  title: {
-    ...Typography.largeTitle,
-    fontWeight: '700',
-  },
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   periodSelector: {
     flexDirection: 'row',

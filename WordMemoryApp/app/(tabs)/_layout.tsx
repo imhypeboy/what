@@ -2,9 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
-import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -18,47 +16,61 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            borderTopWidth: 0,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: 20,
+          borderTopWidth: 0,
+          paddingVertical: 8,
+          height: 70,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 4,
           },
-          default: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-          },
-        }),
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 8,
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: '단어장',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="book.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 28 : 24} name="book.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="study"
         options={{
           title: '학습',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="brain.head.profile" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 28 : 24} name="brain.head.profile" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="test"
         options={{
           title: '시험',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.circle.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 28 : 24} name="checkmark.circle.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: '진도',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 28 : 24} name="chart.bar.fill" color={color} />
+          ),
         }}
       />
     </Tabs>

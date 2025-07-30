@@ -19,8 +19,8 @@ interface GlassContainerProps {
 export function GlassContainer({
   children,
   style,
-  intensity = 20,
-  tint = 'default',
+  intensity = 80,
+  tint = 'light',
   borderRadius = 'lg',
   shadow = true,
   gradient = false,
