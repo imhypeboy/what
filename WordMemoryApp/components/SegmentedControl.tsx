@@ -1,11 +1,17 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import Animated, { useAnimatedStyle, withSpring, useSharedValue } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+interface SegmentItem {
+  id: string;
+  label: string;
+  icon: string;
+}
+
 interface SegmentedControlProps {
-  segments: string[];
+  segments: SegmentItem[];
   selectedIndex: number;
   onIndexChange: (index: number) => void;
 }
@@ -15,56 +21,49 @@ const { width: screenWidth } = Dimensions.get('window');
 export function SegmentedControl({ segments, selectedIndex, onIndexChange }: SegmentedControlProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  
-  const translateX = useSharedValue(0);
-  const segmentWidth = (screenWidth - (Spacing.lg * 2) - 8) / segments.length;
-
-  useEffect(() => {
-    translateX.value = withSpring(selectedIndex * segmentWidth, {
-      damping: 20,
-      stiffness: 300,
-    });
-  }, [selectedIndex, segmentWidth]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.glass.background }]}>
-      {/* 움직이는 선택 배경 */}
-      <Animated.View
-        style={[
-          styles.selectedBackground,
-          {
-            width: segmentWidth,
-            backgroundColor: '#FFFFFF',
-          },
-          animatedStyle,
-        ]}
-      />
-      
-      {/* 세그먼트 버튼들 */}
-      {segments.map((segment, index) => (
-        <TouchableOpacity
-          key={segment}
-          style={[styles.segment, { width: segmentWidth }]}
-          onPress={() => onIndexChange(index)}
-          activeOpacity={0.7}
-        >
-          <Text
+    <View style={styles.container}>
+      {segments.map((segment, index) => {
+        const isSelected = selectedIndex === index;
+        
+        return (
+          <TouchableOpacity
+            key={segment.id}
             style={[
-              styles.segmentText,
-              {
-                color: selectedIndex === index ? colors.primary : colors.textSecondary,
-                fontWeight: selectedIndex === index ? '600' : '400',
-              },
+              styles.segmentButton,
+              isSelected && styles.selectedButton,
+              { backgroundColor: isSelected ? colors.primary : colors.glass.background }
             ]}
+            onPress={() => onIndexChange(index)}
+            activeOpacity={0.8}
           >
-            {segment}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            {isSelected && (
+              <LinearGradient
+                colors={[colors.primary, colors.secondary]}
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+            )}
+            
+            <View style={styles.buttonContent}>
+              <Text style={[
+                styles.icon,
+                { color: isSelected ? '#FFFFFF' : colors.textSecondary }
+              ]}>
+                {segment.icon}
+              </Text>
+              <Text style={[
+                styles.label,
+                { color: isSelected ? '#FFFFFF' : colors.textSecondary }
+              ]}>
+                {segment.label}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -73,10 +72,17 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    padding: 4,
-    position: 'relative',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -85,30 +91,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  selectedBackground: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    height: '100%',
-    borderRadius: BorderRadius.sm,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
+  selectedButton: {
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  segment: {
-    paddingVertical: Spacing.sm,
-    justifyContent: 'center',
+  buttonContent: {
     alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1,
   },
-  segmentText: {
-    ...Typography.callout,
-    fontSize: 15,
+  icon: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  label: {
+    ...Typography.caption,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

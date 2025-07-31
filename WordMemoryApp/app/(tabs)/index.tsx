@@ -20,26 +20,27 @@ import { WordSet, Word } from '@/types';
 
 interface WordSetsScreenProps {
   isDarkMode?: boolean;
+  onStartStudy?: () => void; // 학습 화면으로 이동하는 콜백 추가
 }
 
-export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenProps = {}) {
+export default function WordSetsScreen({ isDarkMode = false, onStartStudy }: WordSetsScreenProps = {}) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  // 다크 모드 색상 오버라이드
-  const screenColors = isDarkMode ? {
+  // 밝은 배경에 맞는 색상 설정 (글래스모피즘 20% 불투명도)
+  const screenColors = {
     ...colors,
-    background: '#1a1a1a',
-    surface: 'rgba(255, 255, 255, 0.05)',
-    text: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.7)',
-    textTertiary: 'rgba(255, 255, 255, 0.5)',
+    background: colors.background,
+    surface: colors.surface,
+    text: colors.text,
+    textSecondary: colors.textSecondary,
+    textTertiary: colors.textTertiary,
     glass: {
-      background: 'rgba(255, 255, 255, 0.08)',
-      border: 'rgba(255, 255, 255, 0.12)',
-      shadow: 'rgba(0, 0, 0, 0.3)',
+      background: 'rgba(255, 255, 255, 0.2)', // 20% 불투명도
+      border: 'rgba(255, 255, 255, 0.3)',
+      shadow: 'rgba(0, 0, 0, 0.1)',
     }
-  } : colors;
+  };
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSetTitle, setNewSetTitle] = useState('');
   const [newSetDescription, setNewSetDescription] = useState('');
@@ -52,6 +53,10 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
   const [newWord, setNewWord] = useState('');
   const [newMeaning, setNewMeaning] = useState('');
   const [newExample, setNewExample] = useState('');
+
+  // 메뉴 모달 관련 state 추가
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [selectedWordSetForMenu, setSelectedWordSetForMenu] = useState<WordSet | null>(null);
 
   // 앱 시작 시 데이터 로드
   useEffect(() => {
@@ -210,82 +215,101 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
       ? Math.round((wordSet.studiedWords / wordSet.totalWords) * 100) 
       : 0;
 
+    const getCategoryEmoji = (category: string) => {
+      switch (category.toLowerCase()) {
+        case '영어': case 'english': return '🇺🇸';
+        case '일반': case '기본': return '📚';
+        case 'toeic': case '토익': return '📝';
+        case '비즈니스': return '💼';
+        case '일상': return '☀️';
+        default: return '📖';
+      }
+    };
+
     return (
-      <GlassContainer style={styles.wordSetCard} borderRadius="lg" intensity={40}>
+      <GlassContainer style={styles.wordSetCard} borderRadius="xl" intensity={40}>
         <View style={styles.cardHeader}>
-          <View style={styles.categoryTag}>
-            <Text style={[styles.categoryText, { color: colors.primary }]}>
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryEmoji}>{getCategoryEmoji(wordSet.category)}</Text>
+            <Text style={[styles.categoryText, { color: screenColors.primary }]}>
               {wordSet.category}
             </Text>
           </View>
-          <Text style={[styles.wordCount, { color: colors.textSecondary }]}>
-            {wordSet.totalWords}개
-          </Text>
+          <View style={[styles.wordCountBadge, { 
+            backgroundColor: wordSet.totalWords > 0 ? screenColors.primary : screenColors.textTertiary 
+          }]}>
+            <Text style={styles.wordCountText}>{wordSet.totalWords}개</Text>
+          </View>
         </View>
         
-        <Text style={[styles.cardTitle, { color: colors.text }]}>
+        <Text style={[styles.cardTitle, { color: screenColors.text }]}>
           {wordSet.title}
         </Text>
         
-        <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
-          {wordSet.description}
+        <Text style={[styles.cardDescription, { color: screenColors.textSecondary }]}>
+          {wordSet.description || '단어를 추가해서 학습을 시작하세요!'}
         </Text>
         
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              학습 진도
-            </Text>
-            <Text style={[styles.progressPercent, { color: colors.primary }]}>
-              {progressPercent}%
-            </Text>
+        {wordSet.totalWords > 0 && (
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressLabel, { color: screenColors.textSecondary }]}>
+                학습 진도
+              </Text>
+              <Text style={[styles.progressPercent, { color: screenColors.primary }]}>
+                {progressPercent}%
+              </Text>
+            </View>
+            
+            <View style={[styles.progressBarBg, { backgroundColor: screenColors.surface }]}>
+              <LinearGradient
+                colors={screenColors.gradients.primary}
+                style={[styles.progressBar, { width: `${progressPercent}%` }]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
+            </View>
           </View>
-          
-          <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-            <LinearGradient
-              colors={colors.gradients.primary}
-              style={[styles.progressBar, { width: `${progressPercent}%` }]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            />
-          </View>
-        </View>
+        )}
+        
+        <TouchableOpacity
+          style={styles.cardMenu}
+          onPress={() => {
+            setSelectedWordSetForMenu(wordSet);
+            setShowMenuModal(true);
+          }}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.menuIcon}>⋯</Text>
+        </TouchableOpacity>
         
         <View style={styles.cardActions}>
-          <TossButton
-            title="+ 단어"
-            onPress={() => {
-              setSelectedWordSetForAdd(wordSet.id);
-              setShowWordModal(true);
-            }}
-            variant="primary"
-            size="small"
-            style={{ flex: 1 }}
-          />
-          <TossButton
-            title="학습하기"
-            onPress={() => {
-              if (wordSet.totalWords === 0) {
-                Alert.alert('알림', '먼저 단어를 추가해주세요.');
-                return;
-              }
-              Alert.alert('학습', `${wordSet.title} 학습을 시작합니다`);
-            }}
-            size="small"
-            style={{ flex: 1 }}
-            disabled={wordSet.totalWords === 0}
-          />
-          <TossButton
-            title="🗑️ 삭제"
-            onPress={() => {
-              if (confirm(`"${wordSet.title}" 단어장을 삭제하시겠습니까?\n\n모든 학습 기록이 함께 삭제됩니다.`)) {
-                handleDeleteWordSet(wordSet.id);
-              }
-            }}
-            variant="ghost"
-            size="small"
-            style={{ flex: 1 }}
-          />
+          {wordSet.totalWords === 0 ? (
+            <TossButton
+              title="+ 첫 단어 추가하기"
+              onPress={() => {
+                setSelectedWordSetForAdd(wordSet.id);
+                setShowWordModal(true);
+              }}
+              variant="primary"
+              size="medium"
+              style={styles.mainAction}
+            />
+          ) : (
+            <TossButton
+              title={`📚 학습 시작 (${wordSet.totalWords}개 단어)`}
+              onPress={() => {
+                if (onStartStudy) {
+                  onStartStudy(); // 실제로 학습 화면으로 이동
+                } else {
+                  Alert.alert('준비 중', '학습 화면으로 이동하는 기능이 곧 추가됩니다!');
+                }
+              }}
+              variant="primary"
+              size="medium"
+              style={styles.mainAction}
+            />
+          )}
         </View>
       </GlassContainer>
     );
@@ -294,13 +318,42 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
   return (
     <View style={[styles.container, { backgroundColor: screenColors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* 헤더 섹션 */}
+        <View style={styles.headerSection}>
+          <Text style={[styles.headerTitle, { color: screenColors.text }]}>
+            내 단어장
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: screenColors.textSecondary }]}>
+            {wordSets.length}개의 단어장 • 지금 업데이트됨
+          </Text>
+        </View>
+
+        {/* 단어장 추가 버튼 - 더 눈에 띄게 */}
+        <GlassContainer style={styles.addButtonContainer} borderRadius="xl" intensity={60}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddForm(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={screenColors.gradients.primary}
+              style={styles.addButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.addButtonIcon}>✨</Text>
+              <Text style={styles.addButtonText}>새 단어장 만들기</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </GlassContainer>
+
         {showAddForm && (
           <GlassContainer 
             style={[styles.addForm, { 
               backgroundColor: screenColors.glass.background,
               borderColor: screenColors.glass.border 
             }]} 
-            borderRadius="lg"
+            borderRadius="xl"
           >
             <Text style={[styles.formTitle, { color: screenColors.text }]}>
               새 단어장 만들기
@@ -341,19 +394,28 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
 
         <View style={styles.wordSetsGrid}>
           {loading ? (
-            <GlassContainer style={styles.loadingContainer} borderRadius="lg">
-              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            <GlassContainer style={styles.loadingContainer} borderRadius="xl">
+              <Text style={styles.loadingEmoji}>⏳</Text>
+              <Text style={[styles.loadingText, { color: screenColors.textSecondary }]}>
                 단어장을 불러오는 중...
               </Text>
             </GlassContainer>
           ) : wordSets.length === 0 ? (
-            <GlassContainer style={styles.emptyContainer} borderRadius="lg">
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            <GlassContainer style={styles.emptyContainer} borderRadius="xl">
+              <Text style={styles.emptyEmoji}>✨</Text>
+              <Text style={[styles.emptyTitle, { color: screenColors.text }]}>
                 단어장이 없습니다
               </Text>
-              <Text style={[styles.emptyDescription, { color: colors.textSecondary }]}>
+              <Text style={[styles.emptyDescription, { color: screenColors.textSecondary }]}>
                 새 단어장을 만들어 학습을 시작해보세요!
               </Text>
+              <TossButton
+                title="새 단어장 만들기"
+                onPress={() => setShowAddForm(true)}
+                variant="primary"
+                size="medium"
+                style={styles.emptyAction}
+              />
             </GlassContainer>
           ) : (
             wordSets.map((wordSet) => (
@@ -362,24 +424,24 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
           )}
         </View>
         
-        <View style={{ height: 100 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       {/* 단어 추가 모달 */}
       {showWordModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <GlassContainer 
-              style={[styles.wordModal, { 
+            <GlassContainer
+              style={[styles.wordModal, {
                 backgroundColor: screenColors.glass.background,
-                borderColor: screenColors.glass.border 
-              }]} 
+                borderColor: screenColors.glass.border
+              }]}
               borderRadius="xl"
             >
               <Text style={[styles.modalTitle, { color: screenColors.text }]}>
                 📝 새 단어 추가
               </Text>
-              
+
               <TossInput
                 placeholder="단어 (예: apple)"
                 value={newWord}
@@ -387,7 +449,7 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
                 variant="glass"
                 style={styles.modalInput}
               />
-              
+
               <TossInput
                 placeholder="뜻 (예: 사과)"
                 value={newMeaning}
@@ -395,7 +457,7 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
                 variant="glass"
                 style={styles.modalInput}
               />
-              
+
               <TossInput
                 placeholder="예문 (선택사항)"
                 value={newExample}
@@ -404,7 +466,7 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
                 multiline
                 style={styles.modalInput}
               />
-              
+
               <View style={styles.modalActions}>
                 <TossButton
                   title="취소"
@@ -424,12 +486,106 @@ export default function WordSetsScreen({ isDarkMode = false }: WordSetsScreenPro
         </View>
       )}
 
-      <FloatingActionButton 
-        onPress={handleAddWordToFirstSet} 
-        iconName="plus"
-        isDarkMode={true}
-        label="단어 추가"
-      />
+      {/* 메뉴 모달 */}
+      {showMenuModal && selectedWordSetForMenu && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <GlassContainer
+              style={[styles.menuModal, {
+                backgroundColor: screenColors.glass.background,
+                borderColor: screenColors.glass.border
+              }]}
+              borderRadius="xl"
+            >
+              <Text style={[styles.modalTitle, { color: screenColors.text }]}>
+                📚 {selectedWordSetForMenu.title}
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: screenColors.textSecondary }]}>
+                단어장 관리 옵션을 선택하세요
+              </Text>
+
+              <View style={styles.menuOptions}>
+                <TouchableOpacity
+                  style={styles.menuOption}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    setSelectedWordSetForAdd(selectedWordSetForMenu.id);
+                    setShowWordModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuOptionIcon}>📝</Text>
+                  <Text style={[styles.menuOptionText, { color: screenColors.text }]}>
+                    단어 추가
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuOption}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    Alert.alert('수정', '단어장 수정 기능이 곧 추가됩니다!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuOptionIcon}>✏️</Text>
+                  <Text style={[styles.menuOptionText, { color: screenColors.text }]}>
+                    수정
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuOption}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    Alert.alert('완료', '단어장이 완료되었습니다!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuOptionIcon}>✅</Text>
+                  <Text style={[styles.menuOptionText, { color: screenColors.text }]}>
+                    완료
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuOption, styles.deleteOption]}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    Alert.alert(
+                      '단어장 삭제',
+                      `"${selectedWordSetForMenu.title}" 단어장을 삭제하시겠습니까?\n\n모든 학습 기록이 함께 삭제됩니다.`,
+                      [
+                        { text: '취소', style: 'cancel' },
+                        { 
+                          text: '삭제', 
+                          style: 'destructive',
+                          onPress: () => handleDeleteWordSet(selectedWordSetForMenu.id)
+                        }
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuOptionIcon}>🗑️</Text>
+                  <Text style={[styles.menuOptionText, { color: '#FF3B30' }]}>
+                    삭제
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TossButton
+                title="취소"
+                onPress={() => setShowMenuModal(false)}
+                variant="ghost"
+                style={styles.modalButton}
+              />
+            </GlassContainer>
+          </View>
+        </View>
+      )}
+
+      {/* FloatingActionButton 제거 */}
     </View>
   );
 }
@@ -442,6 +598,46 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+  },
+  headerSection: {
+    marginBottom: Spacing.lg,
+  },
+  headerTitle: {
+    ...Typography.title1,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  headerSubtitle: {
+    ...Typography.callout,
+    fontWeight: '500',
+  },
+  addButtonContainer: {
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  addButton: {
+    width: '100%',
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+  },
+  addButtonIcon: {
+    fontSize: 24,
+    marginRight: Spacing.sm,
+  },
+  addButtonText: {
+    ...Typography.callout,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   addForm: {
     padding: Spacing.lg,
@@ -461,25 +657,76 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   wordSetCard: {
-    padding: Spacing.xl,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  cardHeaderLeft: {
+  categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    backgroundColor: 'rgba(116, 241, 195, 0.15)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 2,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs / 2,
   },
   categoryEmoji: {
-    fontSize: 40,
-    marginRight: Spacing.md,
+    fontSize: 16,
+  },
+  categoryText: {
+    ...Typography.caption,
+    fontWeight: '600',
+  },
+  wordCountBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 2,
+    borderRadius: BorderRadius.md,
+  },
+  wordCountText: {
+    ...Typography.caption,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  cardMenu: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  menuIcon: {
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 28,
+    color: '#3C3C43',
   },
   cardInfo: {
     flex: 1,
@@ -499,31 +746,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   cardTitle: {
-    ...Typography.title3,
+    ...Typography.title2,
     fontWeight: '700',
-    marginBottom: Spacing.xs / 2,
+    marginBottom: Spacing.xs,
   },
   cardDescription: {
-    ...Typography.footnote,
-    opacity: 0.7,
-    marginBottom: Spacing.lg,
-  },
-  wordCountBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  wordCountText: {
     ...Typography.callout,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    marginBottom: Spacing.md,
+    lineHeight: 20,
   },
   wordsPreview: {
     marginBottom: Spacing.lg,
@@ -558,7 +788,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   progressSection: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   progressInfo: {
     flexDirection: 'row',
@@ -576,7 +806,7 @@ const styles = StyleSheet.create({
     ...Typography.footnote,
     fontWeight: '500',
   },
-  progressPercentage: {
+  progressPercent: {
     ...Typography.callout,
     fontWeight: '700',
   },
@@ -588,6 +818,11 @@ const styles = StyleSheet.create({
   progressBar: {
     height: '100%',
     borderRadius: 4,
+  },
+  progressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   cardActions: {
     gap: Spacing.md,
@@ -707,5 +942,41 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  mainAction: {
+    flex: 1,
+  },
+  // 메뉴 모달 스타일
+  menuModal: {
+    padding: Spacing.xl,
+    borderWidth: 1,
+  },
+  modalSubtitle: {
+    ...Typography.callout,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  menuOptions: {
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  menuOptionIcon: {
+    fontSize: 24,
+    marginRight: Spacing.sm,
+  },
+  menuOptionText: {
+    ...Typography.callout,
+    fontWeight: '600',
+  },
+  deleteOption: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
   },
 });

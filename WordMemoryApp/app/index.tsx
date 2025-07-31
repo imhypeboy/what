@@ -11,7 +11,12 @@ import StudyScreen from './(tabs)/study';
 import TestScreen from './(tabs)/test';
 import ProgressScreen from './(tabs)/progress';
 
-const segments = ['단어장', '학습', '시험', '진도'];
+const segments = [
+  { id: 'words', label: '단어장', icon: '📚' },
+  { id: 'study', label: '학습', icon: '🎯' },
+  { id: 'test', label: '시험', icon: '📝' },
+  { id: 'progress', label: '진도', icon: '📊' }
+];
 
 export default function MainScreen() {
   const colorScheme = useColorScheme();
@@ -21,7 +26,10 @@ export default function MainScreen() {
   const renderContent = () => {
     switch (selectedIndex) {
       case 0:
-        return <WordSetsScreen isDarkMode={true} />;
+        return <WordSetsScreen 
+          isDarkMode={false} 
+          onStartStudy={() => setSelectedIndex(1)} // 학습 화면으로 이동
+        />;
       case 1:
         return <StudyScreen onComplete={() => setSelectedIndex(0)} />;
       case 2:
@@ -29,17 +37,19 @@ export default function MainScreen() {
       case 3:
         return <ProgressScreen />;
       default:
-        return <WordSetsScreen isDarkMode={true} />;
+        return <WordSetsScreen 
+          isDarkMode={false} 
+          onStartStudy={() => setSelectedIndex(1)} // 학습 화면으로 이동
+        />;
     }
   };
 
-  // 단어장 탭일 때 다크 배경 적용
-  const isDarkMode = selectedIndex === 0;
-  const backgroundColor = isDarkMode ? '#1a1a1a' : colors.background;
+  // 모든 탭에서 밝은 배경 사용
+  const backgroundColor = colors.background;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <StatusBar style="dark" />
       
       {/* 상단 세그먼트 컨트롤 */}
       <SegmentedControl

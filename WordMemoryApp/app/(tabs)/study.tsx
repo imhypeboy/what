@@ -244,25 +244,25 @@ export default function StudyScreen({ onComplete }: StudyScreenProps) {
 
   // 플래시카드 학습 화면 (Modal 제거, 일반 화면으로)
   return (
-    <View style={styles.studyModalContainer}>
-      {/* 블러 배경 */}
-      <BlurView intensity={8} tint="dark" style={StyleSheet.absoluteFillObject} />
-      
-      {/* 어두운 오버레이 */}
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]} />
-      
+    <View style={[styles.studyModalContainer, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.studyContent}>
-        {/* 헤더 */}
+        {/* 개선된 헤더 */}
         <View style={styles.studyHeader}>
-          <TossButton
-            title="← 뒤로"
-            onPress={() => setStudyMode(null)}
-            variant="ghost"
-            size="small"
-          />
-          <Text style={[styles.progress, { color: '#FFFFFF' }]}>
-            {currentIndex + 1} / {studyWords.length}
-          </Text>
+          <GlassContainer style={styles.backButtonContainer} borderRadius="md" intensity={60}>
+            <TossButton
+              title="← 뒤로"
+              onPress={() => setStudyMode(null)}
+              variant="ghost"
+              size="small"
+              style={styles.backButton}
+            />
+          </GlassContainer>
+          
+          <GlassContainer style={styles.progressContainer} borderRadius="md" intensity={60}>
+            <Text style={[styles.progress, { color: colors.text }]}>
+              {currentIndex + 1} / {studyWords.length}
+            </Text>
+          </GlassContainer>
         </View>
 
         {/* 카드 컨테이너 */}
@@ -275,30 +275,39 @@ export default function StudyScreen({ onComplete }: StudyScreenProps) {
           />
         </View>
 
-        {/* 하단 컨트롤 - 스와이프 대신 버튼으로도 제어 가능 */}
+        {/* 개선된 하단 컨트롤 */}
         <View style={styles.studyControls}>
-          <GlassContainer style={styles.helpContainer} borderRadius="md" intensity={60}>
-            <Text style={[styles.helpText, { color: 'rgba(255,255,255,0.8)' }]}>
-              💡 카드를 탭하여 뜻을 확인하고, 좌우로 스와이프하세요
-            </Text>
+          {/* 도움말 컨테이너 개선 */}
+          <GlassContainer style={styles.helpContainer} borderRadius="lg" intensity={60}>
+            <View style={styles.helpContent}>
+              <Text style={styles.helpIcon}>💡</Text>
+              <Text style={[styles.helpText, { color: colors.textSecondary }]}>
+                카드를 탭하여 뜻을 확인하고, 좌우로 스와이프하세요
+              </Text>
+            </View>
           </GlassContainer>
           
-          {/* 스와이프 버튼 (웹 호환성) */}
+          {/* 스와이프 버튼 개선 */}
           <View style={styles.swipeButtons}>
-            <TossButton
-              title="⬅️ 다시 암기"
-              onPress={handleSwipeLeft}
-              variant="ghost"
-              size="small"
-              style={styles.swipeButton}
-            />
-            <TossButton
-              title="이해했어요 ➡️"
-              onPress={handleSwipeRight}
-              variant="primary"
-              size="small"
-              style={styles.swipeButton}
-            />
+            <GlassContainer style={styles.swipeButtonContainer} borderRadius="lg" intensity={60}>
+              <TossButton
+                title="⬅️ 다시 암기"
+                onPress={handleSwipeLeft}
+                variant="ghost"
+                size="medium"
+                style={[styles.swipeButton, styles.leftButton]}
+              />
+            </GlassContainer>
+            
+            <GlassContainer style={styles.swipeButtonContainer} borderRadius="lg" intensity={60}>
+              <TossButton
+                title="이해했어요 ➡️"
+                onPress={handleSwipeRight}
+                variant="primary"
+                size="medium"
+                style={[styles.swipeButton, styles.rightButton]}
+              />
+            </GlassContainer>
           </View>
         </View>
       </SafeAreaView>
@@ -346,14 +355,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.md,
     marginBottom: Spacing.md,
-  },
-  helpContainer: {
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  helpText: {
-    ...Typography.footnote,
-    textAlign: 'center',
   },
   wordSetSelector: {
     padding: Spacing.lg,
@@ -460,7 +461,6 @@ const styles = StyleSheet.create({
   // Study Modal Styles
   studyModalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   studyContent: {
     flex: 1,
@@ -472,18 +472,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  backButtonContainer: {
+    padding: Spacing.sm,
+  },
+  backButton: {
+    width: '100%',
+  },
+  progressContainer: {
+    padding: Spacing.sm,
+    minWidth: 80,
+    alignItems: 'center',
   },
   studyControls: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
     gap: Spacing.md,
   },
+  helpContainer: {
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  helpContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  helpIcon: {
+    fontSize: 24,
+  },
+  helpText: {
+    ...Typography.footnote,
+    textAlign: 'center',
+    flex: 1,
+  },
   swipeButtons: {
     flexDirection: 'row',
     gap: Spacing.md,
     marginTop: Spacing.sm,
   },
-  swipeButton: {
+  swipeButtonContainer: {
     flex: 1,
+    padding: Spacing.sm,
+  },
+  swipeButton: {
+    width: '100%',
+  },
+  leftButton: {
+    width: '100%',
+  },
+  rightButton: {
+    width: '100%',
   },
 });

@@ -4,7 +4,7 @@ export const Colors = {
     primary: '#74f1c3',
     secondary: '#a2f5d5',
     accent: '#FF9500',
-    background: '#F2F2F7',
+    background: '#E8E8ED', // 아주 살짝 어둡게 조정
     surface: '#FFFFFF',
     card: '#FFFFFF',
     text: '#000000',
@@ -33,7 +33,7 @@ export const Colors = {
     primary: '#74f1c3',
     secondary: '#a2f5d5',
     accent: '#FF9F0A',
-    background: '#F2F2F7',
+    background: '#E8E8ED', // 아주 살짝 어둡게 조정
     surface: '#FFFFFF',
     card: '#FFFFFF',
     text: '#000000',
